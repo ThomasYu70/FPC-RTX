@@ -1,16 +1,13 @@
-// GDB 프로세스 관리 구현 — 네이티브 C++ (Win32, CLR 없음)
+// GDB process manager implementation -- native C++ (Win32, no CLR)
 #include "GdbSessionNative.h"
-#include <sstream>
 #include <algorithm>
 
 namespace GdbNative {
 
-// ── 생성자 / 소멸자 ───────────────────────────────────────────────────────
-
 GdbSession::GdbSession()  = default;
 GdbSession::~GdbSession() { stop(); }
 
-// ── 경로 변환: 백슬래시 → 슬래시 ─────────────────────────────────────────
+// ── Path conversion: backslash -> slash ───────────────────────────────────
 
 std::string GdbSession::toGdbPath(const std::string& winPath) {
     std::string p = winPath;
@@ -18,46 +15,45 @@ std::string GdbSession::toGdbPath(const std::string& winPath) {
     return p;
 }
 
-// ── GDB 프로세스 시작 ─────────────────────────────────────────────────────
+// ── Start GDB process ─────────────────────────────────────────────────────
 
 bool GdbSession::start(const std::wstring& gdbPath) {
     if (_running.load()) return false;
 
     SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
 
-    // 파이프 생성 (stdin / stdout / stderr)
+    // Create stdin/stdout/stderr pipes
     HANDLE hStdinRead,   hStdinWriteTmp;
     HANDLE hStdoutWrite, hStdoutReadTmp;
     HANDLE hStderrWrite, hStderrReadTmp;
 
-    if (!CreatePipe(&hStdinRead,    &hStdinWriteTmp,  &sa, 0)) return false;
-    if (!CreatePipe(&hStdoutReadTmp, &hStdoutWrite,   &sa, 0)) {
+    if (!CreatePipe(&hStdinRead,    &hStdinWriteTmp, &sa, 0)) return false;
+    if (!CreatePipe(&hStdoutReadTmp, &hStdoutWrite,  &sa, 0)) {
         CloseHandle(hStdinRead); CloseHandle(hStdinWriteTmp); return false;
     }
-    if (!CreatePipe(&hStderrReadTmp, &hStderrWrite,   &sa, 0)) {
-        CloseHandle(hStdinRead); CloseHandle(hStdinWriteTmp);
+    if (!CreatePipe(&hStderrReadTmp, &hStderrWrite,  &sa, 0)) {
+        CloseHandle(hStdinRead);    CloseHandle(hStdinWriteTmp);
         CloseHandle(hStdoutReadTmp); CloseHandle(hStdoutWrite); return false;
     }
 
-    // 우리 쪽 핸들은 비상속 복사본으로 교체
+    // Duplicate handles as non-inheritable for our side
     HANDLE hProc = GetCurrentProcess();
-    DuplicateHandle(hProc, hStdinWriteTmp,  hProc, &_hStdinWrite,  0, FALSE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(hProc, hStdoutReadTmp,  hProc, &_hStdoutRead,  0, FALSE, DUPLICATE_SAME_ACCESS);
-    DuplicateHandle(hProc, hStderrReadTmp,  hProc, &_hStderrRead,  0, FALSE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(hProc, hStdinWriteTmp,  hProc, &_hStdinWrite, 0, FALSE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(hProc, hStdoutReadTmp,  hProc, &_hStdoutRead, 0, FALSE, DUPLICATE_SAME_ACCESS);
+    DuplicateHandle(hProc, hStderrReadTmp,  hProc, &_hStderrRead, 0, FALSE, DUPLICATE_SAME_ACCESS);
 
     CloseHandle(hStdinWriteTmp);
     CloseHandle(hStdoutReadTmp);
     CloseHandle(hStderrReadTmp);
 
-    // 프로세스 시작 정보
+    // Set up process
     STARTUPINFOW si = {};
-    si.cb          = sizeof(STARTUPINFOW);
-    si.dwFlags     = STARTF_USESTDHANDLES;
-    si.hStdInput   = hStdinRead;
-    si.hStdOutput  = hStdoutWrite;
-    si.hStdError   = hStderrWrite;
+    si.cb         = sizeof(STARTUPINFOW);
+    si.dwFlags    = STARTF_USESTDHANDLES;
+    si.hStdInput  = hStdinRead;
+    si.hStdOutput = hStdoutWrite;
+    si.hStdError  = hStderrWrite;
 
-    // 커맨드라인: "gdb.exe" --interpreter=mi2 --quiet
     std::wstring cmdLine = L"\"" + gdbPath + L"\" --interpreter=mi2 --quiet";
     std::vector<wchar_t> cmd(cmdLine.begin(), cmdLine.end());
     cmd.push_back(0);
@@ -66,12 +62,12 @@ bool GdbSession::start(const std::wstring& gdbPath) {
     BOOL ok = CreateProcessW(
         nullptr, cmd.data(),
         nullptr, nullptr,
-        TRUE,               // 핸들 상속
+        TRUE,                // inherit handles
         CREATE_NO_WINDOW,
         nullptr, nullptr,
         &si, &pi);
 
-    // 자식 쪽 핸들 즉시 닫음 (자식이 소유)
+    // Close child-side handles (child owns them now)
     CloseHandle(hStdinRead);
     CloseHandle(hStdoutWrite);
     CloseHandle(hStderrWrite);
@@ -84,26 +80,20 @@ bool GdbSession::start(const std::wstring& gdbPath) {
     _token    = 1;
 
     _readerThread = std::thread(&GdbSession::readLoop, this);
-    // stderr는 별도 스레드 없이 readLoop에서 묵시적으로 무시
-    // (오류 출력이 필요하면 _stderrThread 추가)
-
     return true;
 }
 
-// ── GDB 프로세스 종료 ─────────────────────────────────────────────────────
+// ── Stop GDB process ──────────────────────────────────────────────────────
 
 void GdbSession::stop() {
     if (!_running.exchange(false)) return;
 
-    // 정상 종료 시도
     try { sendMi("-gdb-exit"); } catch (...) {}
 
-    // 최대 2초 대기 후 강제 종료
     if (_hProcess != INVALID_HANDLE_VALUE)
         if (WaitForSingleObject(_hProcess, 2000) == WAIT_TIMEOUT)
             TerminateProcess(_hProcess, 0);
 
-    // 파이프 닫음 → readLoop 스레드 탈출
     auto safeClose = [](HANDLE& h) {
         if (h != INVALID_HANDLE_VALUE) { CloseHandle(h); h = INVALID_HANDLE_VALUE; }
     };
@@ -118,7 +108,7 @@ void GdbSession::stop() {
     safeClose(_hThread);
 }
 
-// ── MI 명령 전송 ──────────────────────────────────────────────────────────
+// ── MI command send ───────────────────────────────────────────────────────
 
 int GdbSession::sendMi(const std::string& command) {
     int tok = _token.fetch_add(1);
@@ -129,7 +119,7 @@ int GdbSession::sendMi(const std::string& command) {
     return tok;
 }
 
-// ── stdout 읽기 루프 (별도 스레드) ───────────────────────────────────────
+// ── stdout read loop (background thread) ─────────────────────────────────
 
 void GdbSession::readLoop() {
     std::string buf;
@@ -143,7 +133,7 @@ void GdbSession::readLoop() {
 
         if (ch == '\n') {
             if (!buf.empty() && buf.back() == '\r') buf.pop_back();
-            auto parsed = GdbMi::parseLine(buf);
+            GdbMi::MiLine parsed = GdbMi::parseLine(buf);
             dispatchLine(parsed);
             buf.clear();
         } else {
@@ -151,7 +141,6 @@ void GdbSession::readLoop() {
         }
     }
 
-    // 프로세스 종료 코드 수집
     DWORD code = 0;
     if (_hProcess != INVALID_HANDLE_VALUE)
         GetExitCodeProcess(_hProcess, &code);
@@ -160,7 +149,7 @@ void GdbSession::readLoop() {
     if (onExited) onExited(static_cast<int>(code));
 }
 
-// ── 레코드 디스패치 ───────────────────────────────────────────────────────
+// ── Dispatch parsed line ──────────────────────────────────────────────────
 
 void GdbSession::dispatchLine(const GdbMi::MiLine& line) {
     if (line.result) {
@@ -177,7 +166,7 @@ void GdbSession::dispatchLine(const GdbMi::MiLine& line) {
     }
 }
 
-// ── 정지 정보 추출 ────────────────────────────────────────────────────────
+// ── Extract stop info ─────────────────────────────────────────────────────
 
 StopInfo GdbSession::extractStop(const GdbMi::AsyncRecord& rec) {
     StopInfo info;
@@ -198,7 +187,7 @@ StopInfo GdbSession::extractStop(const GdbMi::AsyncRecord& rec) {
     return info;
 }
 
-// ── 편의 명령 래퍼 ───────────────────────────────────────────────────────
+// ── Convenience wrappers ──────────────────────────────────────────────────
 
 void GdbSession::loadExe(const std::string& path, const std::string& workDir) {
     sendMi("-file-exec-and-symbols \"" + toGdbPath(path) + "\"");
@@ -224,9 +213,9 @@ int GdbSession::breakInsert(const std::string& file, int line) {
     return sendMi("-break-insert " + file + ":" + std::to_string(line));
 }
 
-void GdbSession::breakDelete(int id)   { sendMi("-break-delete "    + std::to_string(id)); }
-void GdbSession::breakEnable(int id)   { sendMi("-break-enable "    + std::to_string(id)); }
-void GdbSession::breakDisable(int id)  { sendMi("-break-disable "   + std::to_string(id)); }
+void GdbSession::breakDelete(int id)  { sendMi("-break-delete "  + std::to_string(id)); }
+void GdbSession::breakEnable(int id)  { sendMi("-break-enable "  + std::to_string(id)); }
+void GdbSession::breakDisable(int id) { sendMi("-break-disable " + std::to_string(id)); }
 
 void GdbSession::breakCondition(int id, const std::string& cond) {
     sendMi("-break-condition " + std::to_string(id) + " " + cond);

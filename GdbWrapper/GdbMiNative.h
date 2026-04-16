@@ -1,11 +1,11 @@
 #pragma once
-// GDB/MI 파서 — 네이티브 C++ (CLR 없음)
+// GDB/MI parser -- native C++ (no CLR)
 //
-// 파싱 대상:
-//   결과 레코드 : token "^" result-class ( "," results )?
-//   비동기 레코드: token ("*"|"+"|"=") async-type ( "," results )?
-//   스트림 레코드: ("~"|"@"|"&") c-string
-//   프롬프트    : "(gdb)"
+// Targets:
+//   result record  : token "^" result-class ( "," results )?
+//   async record   : token ("*"|"+"|"=") async-type ( "," results )?
+//   stream record  : ("~"|"@"|"&") c-string
+//   prompt         : "(gdb)"
 
 #include <string>
 #include <vector>
@@ -13,17 +13,24 @@
 
 namespace GdbMi {
 
-// ── 값 타입 ────────────────────────────────────────────────────────────────
+// ── Value type ─────────────────────────────────────────────────────────────
 
 struct Value {
     enum class Type { String, Tuple, List };
     Type type = Type::String;
 
-    std::string str;                                              // String
-    std::vector<std::pair<std::string, std::shared_ptr<Value>>> fields;  // Tuple
-    std::vector<std::shared_ptr<Value>> items;                   // List (unnamed)
+    std::string str;   // for Type::String
 
-    // 편의 접근자
+    // Use typedef to avoid MSVC >>> ambiguity
+    using FieldPtr  = std::shared_ptr<Value>;
+    using Field     = std::pair<std::string, FieldPtr>;
+    using FieldList = std::vector<Field>;
+    using ItemList  = std::vector<FieldPtr>;
+
+    FieldList fields;  // for Type::Tuple  (key = value pairs)
+    ItemList  items;   // for Type::List   (unnamed values)
+
+    // Convenience accessors
     std::string getString(const std::string& key,
                           const std::string& def = "") const;
     const Value* get(const std::string& key) const;
@@ -34,7 +41,7 @@ struct Value {
     }
 };
 
-// ── 레코드 타입 ────────────────────────────────────────────────────────────
+// ── Record types ───────────────────────────────────────────────────────────
 
 enum class ResultClass { Done, Running, Connected, Error, Exit };
 enum class AsyncClass  { Exec, Status, Notify };
@@ -46,9 +53,9 @@ struct ResultRecord {
 };
 
 struct AsyncRecord {
-    int        token = -1;
-    AsyncClass cls   = AsyncClass::Exec;
-    std::string type;       // "stopped", "running", …
+    int         token = -1;
+    AsyncClass  cls   = AsyncClass::Exec;
+    std::string type;      // "stopped", "running", ...
     Value       results;
 };
 
@@ -64,7 +71,7 @@ struct MiLine {
     bool isPrompt = false;
 };
 
-// ── 파서 진입점 ────────────────────────────────────────────────────────────
+// ── Parser entry point ─────────────────────────────────────────────────────
 
 MiLine parseLine(const std::string& line);
 

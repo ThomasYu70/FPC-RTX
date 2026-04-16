@@ -1,5 +1,5 @@
 #pragma once
-// GDB 프로세스 관리 — 네이티브 C++ (Win32 파이프, CLR 없음)
+// GDB process manager -- native C++ (Win32 pipes, no CLR)
 
 #include <Windows.h>
 #include <string>
@@ -11,11 +11,11 @@
 
 namespace GdbNative {
 
-// ── 이벤트 데이터 구조체 ──────────────────────────────────────────────────
+// ── Event data ────────────────────────────────────────────────────────────
 
 struct StopInfo {
-    std::string reason;      // "breakpoint-hit", "end-stepping-range", …
-    std::string fileName;    // fullname 또는 file
+    std::string reason;     // "breakpoint-hit", "end-stepping-range", ...
+    std::string fileName;   // fullname or file
     int         line     = 0;
     std::string function;
     std::string address;
@@ -23,18 +23,18 @@ struct StopInfo {
     int         exitCode = 0;
 };
 
-// ── 콜백 타입 ─────────────────────────────────────────────────────────────
+// ── Callback types ────────────────────────────────────────────────────────
 
 using StoppedCb = std::function<void(const StopInfo&)>;
 using ConsoleCb = std::function<void(const std::string&)>;
 using ExitedCb  = std::function<void(int)>;
 using ResultCb  = std::function<void(const GdbMi::ResultRecord&)>;
 
-// ── 네이티브 GDB 세션 ─────────────────────────────────────────────────────
+// ── Native GDB session ────────────────────────────────────────────────────
 
 class GdbSession {
 public:
-    // 콜백 (Start() 전에 설정)
+    // Set before Start()
     StoppedCb onStopped;
     ConsoleCb onConsole;
     ExitedCb  onExited;
@@ -47,10 +47,10 @@ public:
     void stop();
     bool isRunning() const { return _running.load(); }
 
-    // MI 명령 전송 → 사용된 토큰 반환
+    // Send raw MI command, returns token
     int sendMi(const std::string& command);
 
-    // 래퍼 명령
+    // Convenience wrappers
     void loadExe(const std::string& path, const std::string& workDir);
     void execRun();
     void execContinue();

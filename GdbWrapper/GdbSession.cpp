@@ -1,8 +1,8 @@
-// GdbSession.cpp — C++/CLI 관리 래퍼 (컴파일: /clr:netcore)
+// GdbSession.cpp -- C++/CLI managed wrapper (compile with /clr:netcore)
 //
-// 역할:
-//   네이티브 GdbNative::GdbSession 을 감싸서 .NET 이벤트·타입으로 노출합니다.
-//   C# uFPCEditor 는 이 클래스만 사용하며, GDB/MI 프로토콜을 직접 다루지 않습니다.
+// Role:
+//   Wraps native GdbNative::GdbSession, exposes .NET events and types.
+//   C# uFPCEditor uses only this class and does not touch GDB/MI directly.
 
 #include "GdbSessionNative.h"
 
@@ -17,7 +17,7 @@ using namespace System::Collections::Generic;
 
 namespace GdbWrapper {
 
-// ── 공개 데이터 타입 ─────────────────────────────────────────────────────
+// ── Public data types ─────────────────────────────────────────────────────
 
 public enum class StopReason {
     Unknown,
@@ -42,36 +42,36 @@ public:
 public ref class MiResultInfo {
 public:
     property int     Token;
-    property String^ ResultClass;   // "done" | "running" | "error" | …
-    property String^ Message;       // error 시 메시지
+    property String^ ResultClass;   // "done" | "running" | "error" | ...
+    property String^ Message;       // populated when ResultClass == "error"
 };
 
-// ── 델리게이트 ────────────────────────────────────────────────────────────
+// ── Delegates ────────────────────────────────────────────────────────────
 
-public delegate void StoppedDelegate (StopInfo^      info);
-public delegate void ConsoleDelegate (String^        text);
-public delegate void ExitedDelegate  (int            exitCode);
-public delegate void ResultDelegate  (MiResultInfo^  result);
+public delegate void StoppedDelegate (StopInfo^     info);
+public delegate void ConsoleDelegate (String^       text);
+public delegate void ExitedDelegate  (int           exitCode);
+public delegate void ResultDelegate  (MiResultInfo^ result);
 
-// ── GdbSession 관리 클래스 ────────────────────────────────────────────────
+// ── GdbSession managed class ─────────────────────────────────────────────
 
 public ref class GdbSession : IDisposable {
 public:
 
-    // ── 이벤트 ──────────────────────────────────────────────────────────
+    // ── Events ──────────────────────────────────────────────────────────
     event StoppedDelegate^ Stopped;
     event ConsoleDelegate^ ConsoleOutput;
     event ExitedDelegate^  Exited;
     event ResultDelegate^  ResultReceived;
 
-    // ── 속성 ────────────────────────────────────────────────────────────
+    // ── Properties ──────────────────────────────────────────────────────
     property String^ GdbPath;
     property bool    IsRunning {
         bool get() { return _native != nullptr && _native->isRunning(); }
     }
 
-    // ── 생성자 / 소멸자 ─────────────────────────────────────────────────
-    GdbSession() : _native(nullptr), _disposed(false) {}
+    // ── Constructor / Destructor ─────────────────────────────────────────
+    GdbSession() : _native(nullptr), _disposed(false), _rawHandle(nullptr) {}
 
     ~GdbSession() {
         if (!_disposed) {
@@ -86,73 +86,74 @@ public:
             delete _native;
             _native = nullptr;
         }
+        FreeHandle();
     }
 
-    // ── 세션 시작 ────────────────────────────────────────────────────────
+    // ── Session start ────────────────────────────────────────────────────
     void Start() {
         if (_native) { _native->stop(); delete _native; _native = nullptr; }
+        FreeHandle();
 
         _native = new GdbNative::GdbSession();
 
-        // gcroot 없이 람다에서 관리 객체를 캡처하는 방법:
-        // GCHandle 을 raw pointer 로 보관하고 람다에서 복원
-        GCHandle selfHandle = GCHandle::Alloc(this);
-        IntPtr selfPtr = GCHandle::ToIntPtr(selfHandle);
-        _selfHandle = selfHandle;  // 수명 유지
+        // Store GCHandle as void* so native lambdas (std::function) can capture it.
+        // Managed value types like IntPtr cannot be directly captured in native lambdas.
+        GCHandle h = GCHandle::Alloc(this);
+        _rawHandle = GCHandle::ToIntPtr(h).ToPointer();
 
-        _native->onStopped = [selfPtr](const GdbNative::StopInfo& info) {
-            GCHandle h = GCHandle::FromIntPtr(selfPtr);
-            GdbSession^ self = safe_cast<GdbSession^>(h.Target);
+        void* rh = _rawHandle;  // local copy for lambda capture
+
+        _native->onStopped = [rh](const GdbNative::StopInfo& info) {
+            GCHandle gcH = GCHandle::FromIntPtr(IntPtr(rh));
+            GdbSession^ self = safe_cast<GdbSession^>(gcH.Target);
             if (self == nullptr) return;
 
-            auto si       = gcnew StopInfo();
-            si->FileName  = NativeToManaged(info.fileName);
+            auto si = gcnew StopInfo();
+            si->FileName  = Utf8ToManaged(info.fileName);
             si->Line      = info.line;
-            si->Function  = NativeToManaged(info.function);
-            si->Address   = NativeToManaged(info.address);
+            si->Function  = Utf8ToManaged(info.function);
+            si->Address   = Utf8ToManaged(info.address);
             si->BreakpointNumber = info.bpNumber;
             si->ExitCode  = info.exitCode;
 
             const std::string& r = info.reason;
-            if      (r == "breakpoint-hit")                       si->Reason = StopReason::BreakpointHit;
-            else if (r == "end-stepping-range" || r == "function-finished") si->Reason = StopReason::StepComplete;
-            else if (r == "exited-normally")                       si->Reason = StopReason::ExitedNormally;
-            else if (r == "exited-signalled")                      si->Reason = StopReason::ExitedSignalled;
-            else if (r == "signal-received")                       si->Reason = StopReason::SignalReceived;
-            else                                                   si->Reason = StopReason::Unknown;
+            if      (r == "breakpoint-hit")     si->Reason = StopReason::BreakpointHit;
+            else if (r == "end-stepping-range"
+                  || r == "function-finished")  si->Reason = StopReason::StepComplete;
+            else if (r == "exited-normally")    si->Reason = StopReason::ExitedNormally;
+            else if (r == "exited-signalled")   si->Reason = StopReason::ExitedSignalled;
+            else if (r == "signal-received")    si->Reason = StopReason::SignalReceived;
+            else                                si->Reason = StopReason::Unknown;
 
             self->Stopped(si);
         };
 
-        _native->onConsole = [selfPtr](const std::string& text) {
-            GCHandle h = GCHandle::FromIntPtr(selfPtr);
-            GdbSession^ self = safe_cast<GdbSession^>(h.Target);
-            if (self) self->ConsoleOutput(NativeToManaged(text));
+        _native->onConsole = [rh](const std::string& text) {
+            GCHandle gcH = GCHandle::FromIntPtr(IntPtr(rh));
+            GdbSession^ self = safe_cast<GdbSession^>(gcH.Target);
+            if (self) self->ConsoleOutput(Utf8ToManaged(text));
         };
 
-        _native->onExited = [selfPtr](int code) {
-            GCHandle h = GCHandle::FromIntPtr(selfPtr);
-            GdbSession^ self = safe_cast<GdbSession^>(h.Target);
-            if (self) {
-                self->Exited(code);
-                h.Free();   // 세션 종료 시 GCHandle 해제
-            }
+        _native->onExited = [rh](int code) {
+            GCHandle gcH = GCHandle::FromIntPtr(IntPtr(rh));
+            GdbSession^ self = safe_cast<GdbSession^>(gcH.Target);
+            if (self) self->Exited(code);
         };
 
-        _native->onResult = [selfPtr](const GdbMi::ResultRecord& rec) {
-            GCHandle h = GCHandle::FromIntPtr(selfPtr);
-            GdbSession^ self = safe_cast<GdbSession^>(h.Target);
+        _native->onResult = [rh](const GdbMi::ResultRecord& rec) {
+            GCHandle gcH = GCHandle::FromIntPtr(IntPtr(rh));
+            GdbSession^ self = safe_cast<GdbSession^>(gcH.Target);
             if (self == nullptr) return;
 
-            auto r       = gcnew MiResultInfo();
-            r->Token     = rec.token;
+            auto r = gcnew MiResultInfo();
+            r->Token = rec.token;
             switch (rec.cls) {
                 case GdbMi::ResultClass::Done:      r->ResultClass = "done";      break;
                 case GdbMi::ResultClass::Running:   r->ResultClass = "running";   break;
                 case GdbMi::ResultClass::Connected: r->ResultClass = "connected"; break;
                 case GdbMi::ResultClass::Error:
                     r->ResultClass = "error";
-                    r->Message = NativeToManaged(rec.results.getString("msg"));
+                    r->Message = Utf8ToManaged(rec.results.getString("msg"));
                     break;
                 case GdbMi::ResultClass::Exit:      r->ResultClass = "exit";      break;
             }
@@ -161,22 +162,23 @@ public:
 
         std::wstring path = ManagedToWide(GdbPath);
         if (!_native->start(path))
-            throw gcnew InvalidOperationException("GDB 시작 실패: " + GdbPath);
+            throw gcnew InvalidOperationException("GDB start failed: " + GdbPath);
     }
 
     void Stop() {
         if (_native) _native->stop();
-        if (_selfHandle.IsAllocated) _selfHandle.Free();
+        FreeHandle();
     }
 
-    // ── 타깃 로드 ────────────────────────────────────────────────────────
+    // ── Target loading ───────────────────────────────────────────────────
     void LoadExe(String^ exePath, String^ workDir) {
         CheckRunning();
-        _native->loadExe(ManagedToUtf8(exePath),
-                         workDir != nullptr ? ManagedToUtf8(workDir) : "");
+        _native->loadExe(
+            ManagedToUtf8(exePath),
+            workDir != nullptr ? ManagedToUtf8(workDir) : "");
     }
 
-    // ── 실행 제어 ────────────────────────────────────────────────────────
+    // ── Execution control ────────────────────────────────────────────────
     void Run()       { CheckRunning(); _native->execRun(); }
     void Continue()  { CheckRunning(); _native->execContinue(); }
     void StepOver()  { CheckRunning(); _native->execNext(); }
@@ -188,8 +190,7 @@ public:
         _native->execUntil(ManagedToUtf8(file), line);
     }
 
-    // ── 브레이크포인트 ───────────────────────────────────────────────────
-    // 토큰을 반환 → ResultReceived 이벤트에서 같은 Token 으로 결과 수신
+    // ── Breakpoints ──────────────────────────────────────────────────────
     int  InsertBreakpoint(String^ file, int line) {
         CheckRunning();
         return _native->breakInsert(ManagedToUtf8(file), line);
@@ -202,14 +203,13 @@ public:
         _native->breakCondition(id, ManagedToUtf8(cond));
     }
 
-    // ── 데이터 평가 ─────────────────────────────────────────────────────
-    // 반환값: 토큰 → ResultReceived 이벤트에서 결과 수신
+    // ── Data evaluation (async: result via ResultReceived event) ─────────
     int Evaluate(String^ expression) {
         CheckRunning();
         return _native->dataEvaluate(ManagedToUtf8(expression));
     }
 
-    // ── 기타 ─────────────────────────────────────────────────────────────
+    // ── Misc ─────────────────────────────────────────────────────────────
     void StackListFrames()    { CheckRunning(); _native->stackListFrames(); }
     void ListRegisterNames()  { CheckRunning(); _native->listRegisterNames(); }
     void ListRegisterValues() { CheckRunning(); _native->listRegisterValues(); }
@@ -218,7 +218,7 @@ public:
         _native->envDirectory(ManagedToUtf8(dir));
     }
 
-    // ── 로우 MI 명령 (고급 사용) ─────────────────────────────────────────
+    // ── Raw MI command (advanced) ────────────────────────────────────────
     int SendMi(String^ command) {
         CheckRunning();
         return _native->sendMi(ManagedToUtf8(command));
@@ -226,20 +226,29 @@ public:
 
 private:
     GdbNative::GdbSession* _native;
-    bool    _disposed;
-    GCHandle _selfHandle;
+    bool   _disposed;
+    void*  _rawHandle;   // GCHandle stored as void* for native lambda capture
+
+    void FreeHandle() {
+        if (_rawHandle != nullptr) {
+            GCHandle h = GCHandle::FromIntPtr(IntPtr(_rawHandle));
+            if (h.IsAllocated) h.Free();
+            _rawHandle = nullptr;
+        }
+    }
 
     void CheckRunning() {
         if (_native == nullptr || !_native->isRunning())
-            throw gcnew InvalidOperationException("GDB 세션이 실행 중이 아닙니다.");
+            throw gcnew InvalidOperationException("GDB session is not running.");
     }
 
-    // ── 문자열 변환 헬퍼 ────────────────────────────────────────────────
+    // ── String conversion helpers ────────────────────────────────────────
 
-    static String^ NativeToManaged(const std::string& s) {
+    static String^ Utf8ToManaged(const std::string& s) {
         if (s.empty()) return String::Empty;
         array<Byte>^ bytes = gcnew array<Byte>((int)s.size());
-        for (int i = 0; i < (int)s.size(); i++) bytes[i] = (Byte)(unsigned char)s[i];
+        for (int i = 0; i < (int)s.size(); i++)
+            bytes[i] = static_cast<Byte>(static_cast<unsigned char>(s[i]));
         return Encoding::UTF8->GetString(bytes);
     }
 
