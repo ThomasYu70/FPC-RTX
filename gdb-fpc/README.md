@@ -69,6 +69,19 @@ bash /path/to/gdb-fpc/scripts/build.sh
 
 설치 위치: `C:\gdb-custom\bin\gdb.exe`
 
+### 런타임 DLL (함께 배포 필요)
+
+GDB는 MinGW 런타임 DLL에 의존합니다. 빌드 후 아래 파일을 `C:\gdb-custom\bin\`에 복사하세요:
+
+```bash
+# MSYS2 MinGW64 → gdb-custom\bin 복사
+cp /c/msys64/mingw64/bin/libxxhash.dll    /c/gdb-custom/bin/
+cp /c/msys64/mingw64/bin/libmpfr-6.dll    /c/gdb-custom/bin/
+cp /c/msys64/mingw64/bin/libtermcap-0.dll /c/gdb-custom/bin/
+```
+
+누락 시 GDB 실행 시 `libxxhash.dll not found` 오류가 발생합니다.
+
 ---
 
 ## 수정된 파일
