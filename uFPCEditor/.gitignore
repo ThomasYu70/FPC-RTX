@@ -1,0 +1,19 @@
+# Build output
+**/bin/
+**/obj/
+
+# NuGet packages (로컬 캐시는 제외, 소스 패키지는 포함)
+packages/*.nupkg
+
+# User-specific VS files
+*.user
+*.suo
+.vs/
+
+# Crash / debug logs
+crash.log
+gdb_mi.log
+
+# OS
+Thumbs.db
+desktop.ini

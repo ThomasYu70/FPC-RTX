@@ -1,0 +1,39 @@
+<UserControl x:Class="uFPCEditor.Views.SourceEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit">
+
+    <Grid>
+        <!--
+            SyntaxHighlighting 은 XAML에서 지정하지 않는다.
+            코드비하인드(SourceEditorView.xaml.cs)에서
+            파일 확장자에 따라 동적으로 PascalHighlightingLoader.GetByExtension()으로
+            적용한다.
+        -->
+        <avalonEdit:TextEditor
+            x:Name="Editor"
+            FontFamily="Consolas"
+            FontSize="13"
+            ShowLineNumbers="True"
+            LineNumbersForeground="#707070"
+            WordWrap="False"
+            Document="{Binding Document}"
+            IsReadOnly="{Binding IsReadOnly}">
+
+            <avalonEdit:TextEditor.Options>
+                <avalonEdit:TextEditorOptions
+                    ShowSpaces="False"
+                    ShowTabs="False"
+                    ShowEndOfLine="False"
+                    EnableHyperlinks="True"
+                    ConvertTabsToSpaces="False"
+                    IndentationSize="2"
+                    HighlightCurrentLine="True"
+                    CutCopyWholeLine="True"
+                    EnableRectangularSelection="True"
+                    AllowScrollBelowDocument="False"/>
+            </avalonEdit:TextEditor.Options>
+
+        </avalonEdit:TextEditor>
+    </Grid>
+</UserControl>

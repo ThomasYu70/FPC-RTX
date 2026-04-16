@@ -1,0 +1,11 @@
+artifacts/
+build/
+tmp/
+fpcsrc/compiler/*.exe
+fpcsrc/compiler/*.o
+fpcsrc/compiler/*.ppu
+fpcsrc/compiler/*.rst
+fpcsrc/compiler/pp*
+fpcsrc/compiler/ufpc
+fpcsrc/compiler/ufpc.exe
+fpcsrc/rtl/units/

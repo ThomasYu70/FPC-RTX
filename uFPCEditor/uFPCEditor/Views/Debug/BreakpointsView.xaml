@@ -1,0 +1,45 @@
+<UserControl x:Class="uFPCEditor.Views.Debug.BreakpointsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="clr-namespace:uFPCEditor.Core.Debugger">
+
+    <DockPanel>
+        <!-- 툴바 -->
+        <ToolBar DockPanel.Dock="Top">
+            <Button Content="Remove"    Command="{Binding RemoveBreakpointCommand}" ToolTip="Remove selected"/>
+            <Button Content="Remove All" Command="{Binding RemoveAllCommand}"       ToolTip="Remove all breakpoints"/>
+            <Separator/>
+            <Button Content="Enable"    Command="{Binding EnableBreakpointCommand}" ToolTip="Enable"/>
+            <Button Content="Disable"   Command="{Binding DisableBreakpointCommand}" ToolTip="Disable"/>
+            <Separator/>
+            <Button Content="Condition" Command="{Binding EditConditionCommand}"    ToolTip="Edit condition"/>
+        </ToolBar>
+
+        <!-- 브레이크포인트 목록 -->
+        <ListView ItemsSource="{Binding Breakpoints}"
+                  SelectedItem="{Binding SelectedBreakpoint, Mode=TwoWay}"
+                  FontFamily="Consolas" FontSize="12">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="" Width="24">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type core:Breakpoint}">
+                                <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                          IsEnabled="False"
+                                          HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Location"  Width="200"
+                                    DisplayMemberBinding="{Binding DisplayLocation}"/>
+                    <GridViewColumn Header="Condition" Width="150"
+                                    DisplayMemberBinding="{Binding Condition}"/>
+                    <GridViewColumn Header="Hits"      Width="50"
+                                    DisplayMemberBinding="{Binding HitCount}"/>
+                    <GridViewColumn Header="State"     Width="70"
+                                    DisplayMemberBinding="{Binding State}"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</UserControl>

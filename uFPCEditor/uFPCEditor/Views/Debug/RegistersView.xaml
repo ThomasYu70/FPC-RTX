@@ -1,0 +1,40 @@
+<UserControl x:Class="uFPCEditor.Views.Debug.RegistersView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:core="clr-namespace:uFPCEditor.Core.Debugger">
+
+    <DockPanel>
+        <ToolBar DockPanel.Dock="Top">
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" ToolTip="Refresh registers"/>
+        </ToolBar>
+
+        <!-- 2열 레지스터 표시 (x86-64 기준) -->
+        <ListView ItemsSource="{Binding Registers}"
+                  FontFamily="Consolas" FontSize="12">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Register" Width="70"
+                                    DisplayMemberBinding="{Binding Name}"/>
+                    <GridViewColumn Header="Value"    Width="140">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate DataType="{x:Type core:Register}">
+                                <TextBlock Text="{Binding Value}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Changed}" Value="True">
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</UserControl>

@@ -1,0 +1,42 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ── 색상 팔레트 ──────────────────────────────────────────────────────── -->
+    <Color x:Key="FpcBlue">#1E3A5F</Color>
+    <Color x:Key="FpcLightBlue">#2E6DA4</Color>
+    <Color x:Key="FpcBackground">#F0F0F0</Color>
+    <Color x:Key="FpcMenuBackground">#F0F0F0</Color>
+
+    <SolidColorBrush x:Key="FpcBlueBrush"        Color="{StaticResource FpcBlue}"/>
+    <SolidColorBrush x:Key="FpcLightBlueBrush"   Color="{StaticResource FpcLightBlue}"/>
+    <SolidColorBrush x:Key="FpcBackgroundBrush"  Color="{StaticResource FpcBackground}"/>
+
+    <!-- ── 메뉴 스타일 ──────────────────────────────────────────────────────── -->
+    <Style x:Key="FpcMenuStyle" TargetType="Menu">
+        <Setter Property="Background"  Value="{StaticResource FpcBackgroundBrush}"/>
+        <Setter Property="FontSize"    Value="13"/>
+    </Style>
+
+    <!-- ── 상태 바 스타일 ───────────────────────────────────────────────────── -->
+    <Style x:Key="FpcStatusBarStyle" TargetType="StatusBar">
+        <Setter Property="Background" Value="{StaticResource FpcBlueBrush}"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize"   Value="12"/>
+    </Style>
+
+    <!-- ── ListView 기본 스타일 ─────────────────────────────────────────────── -->
+    <Style TargetType="ListView">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background"      Value="White"/>
+    </Style>
+
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background"    Value="#E0E0E0"/>
+        <Setter Property="BorderBrush"   Value="#CCCCCC"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding"       Value="4,2"/>
+        <Setter Property="FontWeight"    Value="SemiBold"/>
+    </Style>
+
+</ResourceDictionary>

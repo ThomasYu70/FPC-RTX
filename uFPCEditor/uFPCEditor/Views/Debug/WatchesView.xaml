@@ -1,0 +1,61 @@
+<UserControl x:Class="uFPCEditor.Views.Debug.WatchesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <DockPanel>
+        <!-- 입력 바 -->
+        <DockPanel DockPanel.Dock="Top" Margin="2">
+            <Button DockPanel.Dock="Right" Content="Add"
+                    Command="{Binding AddWatchCommand}"
+                    Padding="8,2" Margin="2,0,0,0"/>
+            <TextBox Text="{Binding NewExpression, UpdateSourceTrigger=PropertyChanged}"
+                     FontFamily="Consolas"
+                     VerticalContentAlignment="Center">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Return" Command="{Binding AddWatchCommand}"/>
+                </TextBox.InputBindings>
+            </TextBox>
+        </DockPanel>
+
+        <!-- 툴바 -->
+        <ToolBar DockPanel.Dock="Top">
+            <Button Content="Remove"     Command="{Binding RemoveWatchCommand}"  ToolTip="Remove selected"/>
+            <Button Content="Remove All" Command="{Binding RemoveAllCommand}"    ToolTip="Remove all watches"/>
+            <Separator/>
+            <Button Content="Refresh"    Command="{Binding RefreshWatchesCommand}" ToolTip="Refresh values"/>
+            <Button Content="Evaluate"   Command="{Binding EvaluateCommand}"     ToolTip="Evaluate expression"/>
+        </ToolBar>
+
+        <!-- 와치 목록 -->
+        <ListView ItemsSource="{Binding Watches}"
+                  SelectedItem="{Binding SelectedWatch, Mode=TwoWay}"
+                  FontFamily="Consolas" FontSize="12">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Expression" Width="160"
+                                    DisplayMemberBinding="{Binding Expression}"/>
+                    <GridViewColumn Header="Value"      Width="180">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CurrentValue}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChanged}" Value="True">
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
+                    <GridViewColumn Header="Type" Width="100"
+                                    DisplayMemberBinding="{Binding Type}"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+    </DockPanel>
+</UserControl>

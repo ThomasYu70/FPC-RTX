@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c//**)",
+      "Read(//d//**)",
+      "Read(//c/msys2/mingw64/bin/**)",
+      "Read(//c/TDM-GCC-64/bin/**)",
+      "Bash(cmd /c \"file C:/FPC/3.2.2/bin/i386-win32/gdb.exe 2>nul\")",
+      "Bash(python3 -c \"import struct; f=open\\(r'C:/FPC/3.2.2/bin/i386-win32/gdb.exe','rb'\\); f.seek\\(0\\); h=f.read\\(6\\); print\\('PE type:', struct.unpack\\('<H',h[4:6]\\) if h[:2]==b'MZ' else 'unknown'\\)\")",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}

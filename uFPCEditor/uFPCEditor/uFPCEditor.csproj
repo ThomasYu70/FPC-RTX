@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>uFPCEditor</RootNamespace>
+    <AssemblyName>uFPCEditor</AssemblyName>
+    <!-- ApplicationIcon>Resources\fpc.ico</ApplicationIcon -->
+    <Version>1.0.0</Version>
+    <Authors>uFPCEditor Project</Authors>
+    <Description>Free Pascal Compiler IDE - C# WPF Implementation</Description>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <Platforms>AnyCPU;x64</Platforms>
+    <!-- avalonedit 6.3.0.90은 net7.0-windows7.0 까지 지원 → net9.0과 호환 허용 -->
+    <AssetTargetFallback>net7.0-windows;net6.0-windows</AssetTargetFallback>
+    <!-- 기본 빌드 대상: x64 (AnyCPU 선택 시에도 64비트로 실행) -->
+    <PlatformTarget Condition="'$(Platform)' == 'x64'">x64</PlatformTarget>
+    <PlatformTarget Condition="'$(Platform)' == 'Any CPU'">x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 코드 에디터: Pascal 구문 강조 (로컬 패키지 sources/packages/avalonedit.6.3.0.90.nupkg) -->
+    <PackageReference Include="avalonedit" Version="6.3.0.90" />
+    <!-- 도킹 창 관리자 (AvalonDock Dirkster 포크 - 4.x 최신) -->
+    <PackageReference Include="Dirkster.AvalonDock" Version="4.73.0" />
+    <!-- VS 2022 어두운 테마 지원 (선택) -->
+    <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" Version="4.73.0" />
+    <!-- MVVM 툴킷: RelayCommand, ObservableObject 등 -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- DI 컨테이너 -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- XSHD는 EmbeddedResource: Assembly.GetManifestResourceStream()으로 로드 -->
+    <EmbeddedResource Include="Resources\PascalSyntax.xshd" />
+    <!-- fpc.ico 파일이 준비되면 주석 해제
+    <Resource Include="Resources\fpc.ico" />
+    -->
+  </ItemGroup>
+
+</Project>
