@@ -71,16 +71,39 @@ bash /path/to/gdb-fpc/scripts/build.sh
 
 ### 런타임 DLL (함께 배포 필요)
 
-GDB는 MinGW 런타임 DLL에 의존합니다. 빌드 후 아래 파일을 `C:\gdb-custom\bin\`에 복사하세요:
+GDB는 MinGW 런타임 DLL에 의존합니다. 빌드 후 아래 10개 파일을 `C:\gdb-custom\bin\`에 복사하세요:
 
 ```bash
-# MSYS2 MinGW64 → gdb-custom\bin 복사
-cp /c/msys64/mingw64/bin/libxxhash.dll    /c/gdb-custom/bin/
-cp /c/msys64/mingw64/bin/libmpfr-6.dll    /c/gdb-custom/bin/
-cp /c/msys64/mingw64/bin/libtermcap-0.dll /c/gdb-custom/bin/
+# MSYS2 MinGW64 → gdb-custom\bin 복사 (전체 목록)
+MSYS=/c/msys64/mingw64/bin
+DEST=/c/gdb-custom/bin
+
+cp $MSYS/libexpat-1.dll      $DEST/
+cp $MSYS/libgcc_s_seh-1.dll  $DEST/
+cp $MSYS/libgmp-10.dll       $DEST/
+cp $MSYS/libiconv-2.dll      $DEST/
+cp $MSYS/liblzma-5.dll       $DEST/
+cp $MSYS/libmpfr-6.dll       $DEST/
+cp $MSYS/libstdc++-6.dll     $DEST/
+cp $MSYS/libtermcap-0.dll    $DEST/
+cp $MSYS/libwinpthread-1.dll $DEST/
+cp $MSYS/libxxhash.dll       $DEST/
 ```
 
-누락 시 GDB 실행 시 `libxxhash.dll not found` 오류가 발생합니다.
+| DLL | 역할 |
+|---|---|
+| `libgcc_s_seh-1.dll` | GCC SEH 예외 처리 |
+| `libstdc++-6.dll` | C++ 표준 라이브러리 |
+| `libwinpthread-1.dll` | POSIX 스레드 |
+| `libgmp-10.dll` | 다중 정밀도 수학 |
+| `libmpfr-6.dll` | 부동소수점 |
+| `libexpat-1.dll` | XML 파서 (심볼 파일) |
+| `libiconv-2.dll` | 문자셋 변환 |
+| `liblzma-5.dll` | DWARF 압축 해제 |
+| `libtermcap-0.dll` | 터미널 제어 |
+| `libxxhash.dll` | 해시 (심볼 캐시) |
+
+이 DLL들이 없으면 `gdb.exe`가 실행되지 않습니다.
 
 ---
 
