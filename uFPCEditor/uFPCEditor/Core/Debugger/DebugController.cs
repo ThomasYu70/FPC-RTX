@@ -61,6 +61,12 @@ public sealed class DebugController : IDisposable
     private readonly List<string> _registerNames = new();
     private readonly List<Register> _prevRegisters = new();
 
+    // FPC WriteLn 다중 호출 같은 줄 중복 정지 억제
+    private bool    _isStepping;      // StepOver/StepInto 진행 중
+    private bool    _isSteppingInto;  // true=StepInto, false=StepOver
+    private string? _lastStepFile;
+    private int     _lastStepLine = -1;
+
     // ── 로그 헬퍼 ────────────────────────────────────────────────────────────
 
     /// <summary>GDB MI 로그 파일에 IDE 수준 메시지를 기록</summary>
@@ -138,6 +144,7 @@ public sealed class DebugController : IDisposable
     public Task RunAsync()
     {
         Log($"RUN: IsProgramRunning={IsProgramRunning}");
+        _isStepping = false;
         IsProgramRunning = true;
         _gdb.ExecRun();
         return Task.CompletedTask;
@@ -147,6 +154,7 @@ public sealed class DebugController : IDisposable
     public Task ContinueAsync()
     {
         Log($"CONTINUE: IsProgramRunning={IsProgramRunning}");
+        _isStepping = false;
         IsProgramRunning = true;
         _gdb.ExecContinue();
         return Task.CompletedTask;
@@ -156,6 +164,8 @@ public sealed class DebugController : IDisposable
     public Task StepOverAsync()
     {
         Log($"STEP OVER: IsProgramRunning={IsProgramRunning}, IsDebugging={IsDebugging}");
+        _isStepping     = true;
+        _isSteppingInto = false;
         IsProgramRunning = true;   // exec-next 전에 세팅 → refresh 경쟁 방지
         _gdb.ExecNext();
         return Task.CompletedTask;
@@ -165,6 +175,8 @@ public sealed class DebugController : IDisposable
     public Task StepIntoAsync()
     {
         Log($"STEP INTO: IsProgramRunning={IsProgramRunning}, IsDebugging={IsDebugging}");
+        _isStepping     = true;
+        _isSteppingInto = true;
         IsProgramRunning = true;
         _gdb.ExecStep();
         return Task.CompletedTask;
@@ -174,6 +186,7 @@ public sealed class DebugController : IDisposable
     public Task StepOutAsync()
     {
         Log($"STEP OUT: IsProgramRunning={IsProgramRunning}, IsDebugging={IsDebugging}");
+        _isStepping = false;
         IsProgramRunning = true;
         _gdb.ExecFinish();
         return Task.CompletedTask;
@@ -183,12 +196,13 @@ public sealed class DebugController : IDisposable
     public Task RunToCursorAsync(string file, int line)
     {
         Log($"RUN TO CURSOR: {file}:{line}");
+        _isStepping = false;
         IsProgramRunning = true;
         _gdb.ExecUntil(file, line);
         return Task.CompletedTask;
     }
 
-    public Task InterruptAsync() { _gdb.ExecInterrupt(); return Task.CompletedTask; }
+    public Task InterruptAsync() { _isStepping = false; _gdb.ExecInterrupt(); return Task.CompletedTask; }
 
     // ── 브레이크포인트 관리 ───────────────────────────────────────────────────
 
@@ -269,7 +283,9 @@ public sealed class DebugController : IDisposable
         foreach (var watch in Watches.Where(w => w.IsActive))
         {
             if (IsProgramRunning) return;   // 실행 재개됐으면 중단
-            var result = await SendCommandAsync($"-data-evaluate-expression \"{watch.Expression}\"");
+            // 표현식 내 \ " 를 이스케이프하여 MI 명령 구문 오염 방지
+            string escaped = watch.Expression.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            var result = await SendCommandAsync($"-data-evaluate-expression \"{escaped}\"");
             if (IsProgramRunning) return;
             if (result?.ResultClass == GdbResultClass.Done)
             {
@@ -402,11 +418,42 @@ public sealed class DebugController : IDisposable
             {
                 IsProgramRunning = false;
                 var info = GdbMiParser.ExtractStopInfo(record);
-
-                // 상대 경로인 경우 실행 파일 디렉토리 기준으로 절대 경로 보정
                 info = ResolveInfoPaths(info);
 
                 Log($"STOPPED: reason={info.Reason} file=\"{info.FileName}\" line={info.Line} func={info.Function}");
+
+                // FPC WriteLn 억제: step 중 소스 위치 없는 정지를 자동 건너뜀
+                //
+                // FPC는 WriteLn(a,b,c,d)를 fpc_write_text_sint, _FPC_SysAllocateThreadVars,
+                // KERNEL32!GetLastError 등 런타임/시스템 함수 호출 시퀀스로 컴파일함.
+                // 이 함수들에는 Pascal 소스 위치(fullname/file)가 없으므로 GDB는
+                // *stopped 에서 file="" line=0 으로 보고함.
+                // 사용자 소스 파일 위치가 없는 EndSteppingRange 정지는 조용히 재실행.
+                if (_isStepping && info.Reason == StopReason.EndSteppingRange)
+                {
+                    bool noSource = string.IsNullOrEmpty(info.FileName) || info.Line == 0;
+                    bool sameLine = !string.IsNullOrEmpty(info.FileName)
+                                    && info.FileName == _lastStepFile
+                                    && info.Line == _lastStepLine;
+
+                    if (noSource || sameLine)
+                    {
+                        Log($"AUTO STEP SKIP: func={info.Function} file=\"{info.FileName}\" line={info.Line}");
+                        IsProgramRunning = true;
+                        if (_isSteppingInto) _gdb.ExecStep();
+                        else                 _gdb.ExecNext();
+                        return;
+                    }
+                }
+
+                // 현재 위치를 기록 (다음 중단 시 동일 줄 비교용)
+                _lastStepFile = info.FileName;
+                _lastStepLine = info.Line;
+
+                // step 이유가 아닌 경우(브레이크포인트, 시그널 등) 스텝 플래그 해제
+                if (info.Reason != StopReason.EndSteppingRange
+                    && info.Reason != StopReason.FunctionFinished)
+                    _isStepping = false;
 
                 // UI 스레드에서 이벤트 발행
                 App.Current.Dispatcher.Invoke(() => Stopped?.Invoke(this, info));

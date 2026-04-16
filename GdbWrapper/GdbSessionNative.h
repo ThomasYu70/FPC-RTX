@@ -73,6 +73,7 @@ public:
 
 private:
     void readLoop();
+    void stderrDrain();
     void dispatchLine(const GdbMi::MiLine& line);
     StopInfo extractStop(const GdbMi::AsyncRecord& rec);
     static std::string toGdbPath(const std::string& winPath);

@@ -35,7 +35,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
 
-  <!-- GdbWrapper C++/CLI DLL 참조 -->
+  <!-- C++/CLI DLL 참조 -->
   <ItemGroup>
     <ProjectReference Include="..\..\GdbWrapper\GdbWrapper.vcxproj">
       <Project>{B3C4D5E6-F7A8-9012-BCDE-F01234567890}</Project>
@@ -43,6 +43,20 @@
       <!-- C++/CLI 혼합 어셈블리는 EmbedInteropTypes 불가 -->
       <EmbedInteropTypes>false</EmbedInteropTypes>
     </ProjectReference>
+    <ProjectReference Include="..\..\uFPCManaged\uFPCManaged\uFPCManaged.vcxproj">
+      <Project>{8AF53F92-6D76-4F4A-B8A8-5D0FCAB74710}</Project>
+      <Name>uFPCManaged</Name>
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+      <!-- vcxproj은 .NET TargetFramework 메타데이터가 없어 NuGet 복원 시 오류 발생 방지 -->
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!-- ufpcbridge.dll (FPC Pascal 컴파일러 브리지) — uFPCManaged의 P/Invoke 대상 -->
+  <ItemGroup>
+    <None Include="..\..\uFPC\build\sdk\ufpcbridge.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

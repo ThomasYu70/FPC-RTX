@@ -56,7 +56,7 @@ public partial class Watch : ObservableObject
     public void Invalidate()
     {
         LastValue    = CurrentValue;
-        CurrentValue = "<不可能>";
+        CurrentValue = "<error>";
         IsValid      = false;
         OnPropertyChanged(nameof(IsChanged));
     }

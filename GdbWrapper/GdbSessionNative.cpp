@@ -79,7 +79,8 @@ bool GdbSession::start(const std::wstring& gdbPath) {
     _running  = true;
     _token    = 1;
 
-    _readerThread = std::thread(&GdbSession::readLoop, this);
+    _readerThread = std::thread(&GdbSession::readLoop,      this);
+    _stderrThread = std::thread(&GdbSession::stderrDrain,   this);
     return true;
 }
 
@@ -147,6 +148,20 @@ void GdbSession::readLoop() {
 
     _running = false;
     if (onExited) onExited(static_cast<int>(code));
+}
+
+// ── stderr drain (background thread) ─────────────────────────────────────
+// GDB's stderr pipe must be drained continuously. If the pipe buffer (~64KB)
+// fills up, GDB blocks and the entire debug session freezes.
+
+void GdbSession::stderrDrain() {
+    char buf[256];
+    DWORD read = 0;
+    while (_running.load()) {
+        BOOL ok = ReadFile(_hStderrRead, buf, sizeof(buf), &read, nullptr);
+        if (!ok || read == 0) break;
+        // Discard stderr output. Errors appear in MI as ^error records.
+    }
 }
 
 // ── Dispatch parsed line ──────────────────────────────────────────────────

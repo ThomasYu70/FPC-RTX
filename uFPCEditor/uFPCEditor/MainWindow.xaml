@@ -22,20 +22,20 @@
         <KeyBinding Key="S"   Modifiers="Ctrl"       Command="{Binding SaveCommand}"/>
         <KeyBinding Key="S"   Modifiers="Ctrl+Shift" Command="{Binding SaveAllCommand}"/>
         <KeyBinding Key="W"   Modifiers="Ctrl"       Command="{Binding CloseCommand}"/>
-        <!-- Run / Build -->
-        <KeyBinding Key="F9"  Modifiers="Alt"        Command="{Binding CompileCommand}"/>
-        <KeyBinding Key="F9"                         Command="{Binding BuildCommand}"/>
-        <KeyBinding Key="F9"  Modifiers="Ctrl"       Command="{Binding RunCommand}"/>
-        <!-- Debug step (FPC IDE 기본 단축키) -->
-        <KeyBinding Key="F8"                         Command="{Binding StepOverCommand}"/>
-        <KeyBinding Key="F7"                         Command="{Binding StepIntoCommand}"/>
-        <KeyBinding Key="F8"  Modifiers="Shift"      Command="{Binding StepOutCommand}"/>
-        <KeyBinding Key="F4"                         Command="{Binding RunToCursorCommand}"/>
-        <!-- Debug control -->
-        <KeyBinding Key="F5"                         Command="{Binding ToggleBreakpointCommand}"/>
-        <KeyBinding Key="F2"                         Command="{Binding ResetDebuggerCommand}"/>
-        <KeyBinding Key="F7"  Modifiers="Ctrl"       Command="{Binding AddWatchCommand}"/>
-        <KeyBinding Key="F4"  Modifiers="Ctrl"       Command="{Binding EvaluateCommand}"/>
+        <!-- Run / Build (VS 2022) -->
+        <KeyBinding Key="B"   Modifiers="Ctrl"       Command="{Binding CompileCommand}"/>
+        <KeyBinding Key="B"   Modifiers="Ctrl+Shift" Command="{Binding BuildCommand}"/>
+        <KeyBinding Key="F5"                         Command="{Binding RunCommand}"/>
+        <!-- Debug step (VS 2022) -->
+        <KeyBinding Key="F10"                        Command="{Binding StepOverCommand}"/>
+        <KeyBinding Key="F11"                        Command="{Binding StepIntoCommand}"/>
+        <KeyBinding Key="F11" Modifiers="Shift"      Command="{Binding StepOutCommand}"/>
+        <KeyBinding Key="F10" Modifiers="Ctrl"       Command="{Binding RunToCursorCommand}"/>
+        <!-- Debug control (VS 2022) -->
+        <KeyBinding Key="F9"                         Command="{Binding ToggleBreakpointCommand}"/>
+        <KeyBinding Key="F5"  Modifiers="Shift"      Command="{Binding ResetDebuggerCommand}"/>
+        <KeyBinding Key="W"   Modifiers="Ctrl+Alt"   Command="{Binding AddWatchCommand}"/>
+        <KeyBinding Key="F9"  Modifiers="Shift"      Command="{Binding EvaluateCommand}"/>
     </Window.InputBindings>
 
     <DockPanel>
@@ -91,11 +91,11 @@
 
             <!-- Run -->
             <MenuItem Header="_Run">
-                <MenuItem Header="_Compile"        Command="{Binding CompileCommand}"       InputGestureText="Alt+F9"/>
-                <MenuItem Header="_Build"          Command="{Binding BuildCommand}"         InputGestureText="F9"/>
+                <MenuItem Header="_Compile"        Command="{Binding CompileCommand}"       InputGestureText="Ctrl+B"/>
+                <MenuItem Header="_Build"          Command="{Binding BuildCommand}"         InputGestureText="Ctrl+Shift+B"/>
                 <MenuItem Header="_Make"           Command="{Binding MakeCommand}"/>
                 <Separator/>
-                <MenuItem Header="_Run"            Command="{Binding RunCommand}"           InputGestureText="Ctrl+F9"/>
+                <MenuItem Header="_Run"            Command="{Binding RunCommand}"           InputGestureText="F5"/>
                 <MenuItem Header="_Parameters..."  Command="{Binding ParametersCommand}"/>
                 <Separator/>
                 <MenuItem Header="Primary _File..." Command="{Binding BrowsePrimaryFileCommand}"/>
@@ -104,24 +104,24 @@
 
             <!-- Debug -->
             <MenuItem Header="_Debug">
-                <MenuItem Header="_Step Over"          Command="{Binding StepOverCommand}"       InputGestureText="F8"/>
-                <MenuItem Header="Step _Into"          Command="{Binding StepIntoCommand}"       InputGestureText="F7"/>
-                <MenuItem Header="Step _Out"           Command="{Binding StepOutCommand}"        InputGestureText="Shift+F8"/>
-                <MenuItem Header="Run to _Cursor"      Command="{Binding RunToCursorCommand}"    InputGestureText="F4"/>
+                <MenuItem Header="_Step Over"          Command="{Binding StepOverCommand}"       InputGestureText="F10"/>
+                <MenuItem Header="Step _Into"          Command="{Binding StepIntoCommand}"       InputGestureText="F11"/>
+                <MenuItem Header="Step _Out"           Command="{Binding StepOutCommand}"        InputGestureText="Shift+F11"/>
+                <MenuItem Header="Run to _Cursor"      Command="{Binding RunToCursorCommand}"    InputGestureText="Ctrl+F10"/>
                 <Separator/>
-                <MenuItem Header="Toggle _Breakpoint"  Command="{Binding ToggleBreakpointCommand}" InputGestureText="F5"/>
+                <MenuItem Header="Toggle _Breakpoint"  Command="{Binding ToggleBreakpointCommand}" InputGestureText="F9"/>
                 <MenuItem Header="_Show Breakpoints"   Command="{Binding ShowBreakpointsCommand}"/>
                 <Separator/>
-                <MenuItem Header="Add _Watch..."       Command="{Binding AddWatchCommand}"       InputGestureText="Ctrl+F7"/>
+                <MenuItem Header="Add _Watch..."       Command="{Binding AddWatchCommand}"       InputGestureText="Ctrl+Alt+W"/>
                 <MenuItem Header="Show _Watches"       Command="{Binding ShowWatchesCommand}"/>
                 <Separator/>
                 <MenuItem Header="Show _Call Stack"    Command="{Binding ShowCallStackCommand}"/>
                 <MenuItem Header="Show _Registers"     Command="{Binding ShowRegistersCommand}"/>
                 <MenuItem Header="Show _Disassembly"   Command="{Binding ShowDisassemblyCommand}"/>
                 <Separator/>
-                <MenuItem Header="E_valuate..."        Command="{Binding EvaluateCommand}"       InputGestureText="Ctrl+F4"/>
+                <MenuItem Header="E_valuate..."        Command="{Binding EvaluateCommand}"       InputGestureText="Shift+F9"/>
                 <Separator/>
-                <MenuItem Header="_Reset Debugger"     Command="{Binding ResetDebuggerCommand}"/>
+                <MenuItem Header="_Reset Debugger"     Command="{Binding ResetDebuggerCommand}"  InputGestureText="Shift+F5"/>
                 <MenuItem Header="Open _GDB Console"   Command="{Binding OpenGdbConsoleCommand}"/>
             </MenuItem>
 
@@ -165,16 +165,16 @@
                 <Button Command="ApplicationCommands.Copy"   ToolTip="Copy"  Content="⎘"/>
                 <Button Command="ApplicationCommands.Paste"  ToolTip="Paste" Content="📋"/>
                 <Separator/>
-                <Button Command="{Binding CompileCommand}"   ToolTip="Compile (Alt+F9)"    Content="⚙"/>
-                <Button Command="{Binding BuildCommand}"     ToolTip="Build (F9)"          Content="🔨"/>
-                <Button Command="{Binding RunCommand}"       ToolTip="Run (Ctrl+F9)"       Content="▶"/>
+                <Button Command="{Binding CompileCommand}"   ToolTip="Compile (Ctrl+B)"        Content="⚙"/>
+                <Button Command="{Binding BuildCommand}"     ToolTip="Build (Ctrl+Shift+B)"    Content="🔨"/>
+                <Button Command="{Binding RunCommand}"       ToolTip="Run (F5)"                Content="▶"/>
                 <Separator/>
-                <Button Command="{Binding StepOverCommand}"  ToolTip="Step Over (F8)"      Content="→"/>
-                <Button Command="{Binding StepIntoCommand}"  ToolTip="Step Into (F7)"      Content="↓"/>
-                <Button Command="{Binding StepOutCommand}"   ToolTip="Step Out (Shift+F8)" Content="↑"/>
+                <Button Command="{Binding StepOverCommand}"  ToolTip="Step Over (F10)"         Content="→"/>
+                <Button Command="{Binding StepIntoCommand}"  ToolTip="Step Into (F11)"         Content="↓"/>
+                <Button Command="{Binding StepOutCommand}"   ToolTip="Step Out (Shift+F11)"    Content="↑"/>
                 <Separator/>
-                <Button Command="{Binding ToggleBreakpointCommand}" ToolTip="Toggle Breakpoint (F5)" Content="🔴"/>
-                <Button Command="{Binding ResetDebuggerCommand}"    ToolTip="Reset Debugger"         Content="⏹"/>
+                <Button Command="{Binding ToggleBreakpointCommand}" ToolTip="Toggle Breakpoint (F9)"  Content="🔴"/>
+                <Button Command="{Binding ResetDebuggerCommand}"    ToolTip="Stop Debugging (Shift+F5)" Content="⏹"/>
             </ToolBar>
         </ToolBarTray>
 
