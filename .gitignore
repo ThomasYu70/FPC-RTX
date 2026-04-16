@@ -6,6 +6,8 @@ uFPC/fpcsrc/
 **/bin/
 **/obj/
 **/build/
+**/x64/
+**/artifacts/
 uFPC/tmp/
 uFPC/artifacts/
 
