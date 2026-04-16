@@ -1,0 +1,31 @@
+--- orig/gdb-16.3/gdb/p-lang.c	2025-04-21 02:22:05.000000000 +0900
++++ gdb-16.3/gdb/p-lang.c	2026-04-17 00:59:33.309329600 +0900
+@@ -89,6 +89,28 @@
+ /* See p-lang.h.  */
+ 
+ int
++fpc_is_ansistring_type (struct type *type)
++{
++  const char *name;
++
++  if (type == NULL)
++    return 0;
++  type = check_typedef (type);
++  if (type->code () != TYPE_CODE_PTR)
++    return 0;
++  name = type->name ();
++  if (name == NULL)
++    return 0;
++  /* FPC emits AnsiString-family types as named pointer types in DWARF.
++     Accept both uppercase (FPC < 3.x) and mixed-case (FPC 3.x+).  */
++  return (strcasecmp (name, "ansistring") == 0
++	  || strcasecmp (name, "rawbytestring") == 0
++	  || strcasecmp (name, "utf8string") == 0);
++}
++
++/* See p-lang.h.  */
++
++int
+ pascal_is_string_type (struct type *type,int *length_pos, int *length_size,
+ 		       int *string_pos, struct type **char_type,
+ 		       const char **arrayname)

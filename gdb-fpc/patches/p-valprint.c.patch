@@ -1,0 +1,99 @@
+--- orig/gdb-16.3/gdb/p-valprint.c	2025-04-21 02:22:05.000000000 +0900
++++ gdb-16.3/gdb/p-valprint.c	2026-04-17 01:00:12.178197100 +0900
+@@ -23,6 +23,7 @@
+ #include "gdbsupport/gdb_obstack.h"
+ #include "symtab.h"
+ #include "gdbtypes.h"
++#include "gdbarch.h"
+ #include "expression.h"
+ #include "value.h"
+ #include "command.h"
+@@ -47,6 +48,68 @@
+ 					      const struct value_print_options *,
+ 					      struct type **, int);
+ 
++/* Print the contents of an FPC AnsiString / RawByteString / UTF8String.
++   ADDR is the data pointer (the AnsiString variable value itself).
++   FPC stores the string as a reference-counted heap block:
++
++     x64 layout (offsets relative to ADDR):
++       ADDR-24 : CodePage   (uint16)
++       ADDR-22 : ElemSize   (uint16)
++       ADDR-20 : padding    (uint32, x64 only)
++       ADDR- 8 : Len        (int64  = SizeInt)  <-- ptr_size bytes before ADDR
++       ADDR+ 0 : Data[0]    first character
++
++     x32 layout:
++       ADDR-12 : CodePage   (uint16)
++       ADDR-10 : ElemSize   (uint16)
++       ADDR- 4 : Len        (int32  = SizeInt)  <-- ptr_size bytes before ADDR
++       ADDR+ 0 : Data[0]
++
++   Therefore we only need (ADDR - ptr_size) to read the length.  */
++
++static void
++fpc_print_ansistring (CORE_ADDR addr, struct type *ptr_type,
++		      struct ui_file *stream,
++		      const struct value_print_options *options)
++{
++  struct gdbarch *gdbarch = ptr_type->arch ();
++  enum bfd_endian byte_order = type_byte_order (ptr_type);
++  int ptr_size = gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT;
++  gdb_byte len_buf[8];
++  LONGEST str_len;
++
++  if (ptr_size != 4 && ptr_size != 8)
++    {
++      gdb_puts ("<unsupported AnsiString arch>", stream);
++      return;
++    }
++
++  /* Read SizeInt length stored immediately before the character data.  */
++  if (target_read_memory (addr - ptr_size, len_buf, ptr_size) != 0)
++    {
++      gdb_puts ("<unreadable AnsiString>", stream);
++      return;
++    }
++  str_len = extract_signed_integer (len_buf, ptr_size, byte_order);
++
++  if (str_len == 0)
++    {
++      gdb_puts ("''", stream);
++      return;
++    }
++
++  /* Refuse obviously invalid lengths (negative or > 64 MiB).  */
++  if (str_len < 0 || str_len > 67108864)
++    {
++      gdb_puts ("<invalid AnsiString>", stream);
++      return;
++    }
++
++  /* Delegate to GDB's standard string printer for the actual characters.  */
++  struct type *char_type = builtin_type (gdbarch)->builtin_char;
++  val_print_string (char_type, NULL, addr, (int) str_len, stream, options);
++}
++
+ /* Decorations for Pascal.  */
+ 
+ static const struct generic_val_print_decorations p_decorations =
+@@ -183,6 +246,19 @@
+ 	  want_space = 1;
+ 	}
+ 
++      /* FPC AnsiString / RawByteString / UTF8String:
++	 The pointer type itself carries the type name (e.g. "ANSISTRING").
++	 Length is stored as SizeInt at (addr - ptr_size).  */
++      if (fpc_is_ansistring_type (type)
++	  && addr != 0
++	  && (options->format == 0 || options->format == 's'))
++	{
++	  if (want_space)
++	    gdb_puts (" ", stream);
++	  fpc_print_ansistring (addr, type, stream, options);
++	  return;
++	}
++
+       /* For a pointer to char or unsigned char, also print the string
+ 	 pointed to, unless pointer is null.  */
+       if (((elttype->length () == 1

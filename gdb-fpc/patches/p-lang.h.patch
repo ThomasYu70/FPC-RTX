@@ -1,0 +1,15 @@
+--- orig/gdb-16.3/gdb/p-lang.h	2025-04-21 02:22:05.000000000 +0900
++++ gdb-16.3/gdb/p-lang.h	2026-04-17 00:59:23.346023000 +0900
+@@ -40,6 +40,12 @@
+ 				  struct type **char_type,
+ 				  const char **arrayname);
+ 
++/* Returns non-zero if TYPE is an FPC AnsiString, RawByteString, or
++   UTF8String pointer type, identified by the DWARF type name.
++   The string data starts at the pointer address; the SizeInt length
++   is stored immediately before the data at (ptr - sizeof (SizeInt)).  */
++extern int fpc_is_ansistring_type (struct type *type);
++
+ /* Defined in p-lang.c */
+ 
+ extern const char *pascal_main_name (void);

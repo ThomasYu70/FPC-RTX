@@ -44,7 +44,7 @@ public partial class App : Application
         var debugger = Services.GetRequiredService<DebugController>();
         // x64 실행 파일 디버깅에는 64비트 GDB가 필요하다.
         // FPC 번들 gdb.exe 는 32비트라 64비트 프로세스를 디버깅할 수 없음.
-        // 우선순위: MSYS2 mingw64 → TDM-GCC-64 → FPC 번들(32비트, 임시)
+        // 우선순위: 커스텀 빌드(FPC 지원 개선) → MSYS2 mingw64 → TDM-GCC-64 → FPC 번들(32비트, 임시)
         debugger.GdbPath = FindGdb(fpcBin);
     }
 
@@ -86,7 +86,8 @@ public partial class App : Application
     {
         string[] candidates =
         [
-            @"C:\msys64\mingw64\bin\gdb.exe",   // MSYS2 (winget 기본 설치 경로)
+            @"C:\gdb-custom\bin\gdb.exe",           // 커스텀 빌드 (FPC AnsiString 지원 개선)
+            @"C:\msys64\mingw64\bin\gdb.exe",       // MSYS2 (winget 기본 설치 경로)
             @"C:\msys2\mingw64\bin\gdb.exe",
             @"C:\TDM-GCC-64\bin\gdb.exe",
             System.IO.Path.Combine(fpcBin, "gdb.exe"),   // 32비트 fallback
