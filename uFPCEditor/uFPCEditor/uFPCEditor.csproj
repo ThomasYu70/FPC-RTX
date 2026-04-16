@@ -35,6 +35,16 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
   </ItemGroup>
 
+  <!-- GdbWrapper C++/CLI DLL 참조 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\GdbWrapper\GdbWrapper.vcxproj">
+      <Project>{B3C4D5E6-F7A8-9012-BCDE-F01234567890}</Project>
+      <Name>GdbWrapper</Name>
+      <!-- C++/CLI 혼합 어셈블리는 EmbedInteropTypes 불가 -->
+      <EmbedInteropTypes>false</EmbedInteropTypes>
+    </ProjectReference>
+  </ItemGroup>
+
   <ItemGroup>
     <!-- XSHD는 EmbeddedResource: Assembly.GetManifestResourceStream()으로 로드 -->
     <EmbeddedResource Include="Resources\PascalSyntax.xshd" />
